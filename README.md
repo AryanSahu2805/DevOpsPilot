@@ -2,8 +2,6 @@
 
 A **cloud-native monitoring and automation platform** that integrates DevOps workflows with AI-powered intelligent system insights. Built for modern infrastructure teams who need comprehensive observability with predictive analytics.
 
-![DevOps Pilot Dashboard](https://via.placeholder.com/800x400/1a1d23/10b981?text=DevOps+Pilot+Dashboard)
-
 ## ✨ Features
 
 ### 🎯 Core Monitoring
