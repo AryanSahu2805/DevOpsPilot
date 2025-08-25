@@ -1,0 +1,92 @@
+global:
+  resolve_timeout: 5m
+  slack_api_url: 'https://hooks.slack.com/services/YOUR_SLACK_WEBHOOK'
+  smtp_smarthost: 'localhost:25'
+  smtp_from: 'alertmanager@devopspilot.com'
+
+route:
+  group_by: ['alertname', 'cluster', 'service']
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 4h
+  receiver: 'web.hook'
+  routes:
+    - match:
+        severity: critical
+      receiver: 'pager-duty'
+      continue: true
+    - match:
+        severity: warning
+      receiver: 'slack'
+      continue: true
+    - match:
+        service: ai-engine
+      receiver: 'ai-team'
+      continue: true
+    - match:
+        service: database
+      receiver: 'dba-team'
+      continue: true
+
+receivers:
+  - name: 'web.hook'
+    webhook_configs:
+      - url: 'http://127.0.0.1:5001/'
+
+  - name: 'slack'
+    slack_configs:
+      - channel: '#devopspilot-alerts'
+        send_resolved: true
+        title: '{{ template "slack.title" . }}'
+        text: '{{ template "slack.text" . }}'
+        actions:
+          - type: button
+            text: 'View in Grafana'
+            url: '{{ template "slack.grafana" . }}'
+          - type: button
+            text: 'Silence'
+            url: '{{ template "slack.silence" . }}'
+
+  - name: 'pager-duty'
+    pagerduty_configs:
+      - service_key: 'YOUR_PAGERDUTY_SERVICE_KEY'
+        send_resolved: true
+
+  - name: 'ai-team'
+    slack_configs:
+      - channel: '#ai-team'
+        send_resolved: true
+        title: '{{ template "slack.title" . }}'
+        text: '{{ template "slack.text" . }}'
+        actions:
+          - type: button
+            text: 'View in Grafana'
+            url: '{{ template "slack.grafana" . }}'
+
+  - name: 'dba-team'
+    slack_configs:
+      - channel: '#dba-team'
+        send_resolved: true
+        title: '{{ template "slack.title" . }}'
+        text: '{{ template "slack.text" . }}'
+        actions:
+          - type: button
+            text: 'View in Grafana'
+            url: '{{ template "slack.grafana" . }}'
+
+  - name: 'email'
+    email_configs:
+      - to: 'devops@devopspilot.com'
+        send_resolved: true
+        headers:
+          subject: '{{ template "email.subject" . }}'
+
+inhibit_rules:
+  - source_match:
+      severity: 'critical'
+    target_match:
+      severity: 'warning'
+    equal: ['alertname', 'cluster', 'service']
+
+templates:
+  - '/etc/alertmanager/template/*.tmpl'

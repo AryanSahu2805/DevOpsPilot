@@ -1,0 +1,213 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: devopspilot-backend-service
+  namespace: devopspilot
+  labels:
+    app: devopspilot-backend
+    component: backend
+    environment: production
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "8000"
+    prometheus.io/path: "/metrics"
+spec:
+  type: ClusterIP
+  ports:
+  - name: http
+    port: 8000
+    targetPort: 8000
+    protocol: TCP
+  - name: metrics
+    port: 8001
+    targetPort: 8001
+    protocol: TCP
+  selector:
+    app: devopspilot-backend
+    component: backend
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: devopspilot-ai-engine-service
+  namespace: devopspilot
+  labels:
+    app: devopspilot-ai-engine
+    component: ai-engine
+    environment: production
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "8001"
+    prometheus.io/path: "/metrics"
+spec:
+  type: ClusterIP
+  ports:
+  - name: http
+    port: 8001
+    targetPort: 8001
+    protocol: TCP
+  selector:
+    app: devopspilot-ai-engine
+    component: ai-engine
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: devopspilot-frontend-service
+  namespace: devopspilot
+  labels:
+    app: devopspilot-frontend
+    component: frontend
+    environment: production
+spec:
+  type: ClusterIP
+  ports:
+  - name: http
+    port: 80
+    targetPort: 80
+    protocol: TCP
+  selector:
+    app: devopspilot-frontend
+    component: frontend
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: devopspilot-mongodb-service
+  namespace: devopspilot
+  labels:
+    app: devopspilot-mongodb
+    component: database
+    environment: production
+spec:
+  type: ClusterIP
+  ports:
+  - name: mongodb
+    port: 27017
+    targetPort: 27017
+    protocol: TCP
+  selector:
+    app: devopspilot-mongodb
+    component: database
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: devopspilot-redis-service
+  namespace: devopspilot
+  labels:
+    app: devopspilot-redis
+    component: cache
+    environment: production
+spec:
+  type: ClusterIP
+  ports:
+  - name: redis
+    port: 6379
+    targetPort: 6379
+    protocol: TCP
+  selector:
+    app: devopspilot-redis
+    component: cache
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: devopspilot-prometheus-service
+  namespace: devopspilot
+  labels:
+    app: devopspilot-prometheus
+    component: monitoring
+    environment: production
+spec:
+  type: ClusterIP
+  ports:
+  - name: prometheus
+    port: 9090
+    targetPort: 9090
+    protocol: TCP
+  selector:
+    app: devopspilot-prometheus
+    component: monitoring
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: devopspilot-grafana-service
+  namespace: devopspilot
+  labels:
+    app: devopspilot-grafana
+    component: monitoring
+    environment: production
+spec:
+  type: ClusterIP
+  ports:
+  - name: grafana
+    port: 3000
+    targetPort: 3000
+    protocol: TCP
+  selector:
+    app: devopspilot-grafana
+    component: monitoring
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: devopspilot-node-exporter-service
+  namespace: devopspilot
+  labels:
+    app: devopspilot-node-exporter
+    component: monitoring
+    environment: production
+spec:
+  type: ClusterIP
+  ports:
+  - name: metrics
+    port: 9100
+    targetPort: 9100
+    protocol: TCP
+  selector:
+    app: devopspilot-node-exporter
+    component: monitoring
+---
+# Headless Service for StatefulSet (if using MongoDB StatefulSet)
+apiVersion: v1
+kind: Service
+metadata:
+  name: devopspilot-mongodb-headless
+  namespace: devopspilot
+  labels:
+    app: devopspilot-mongodb
+    component: database
+    environment: production
+spec:
+  clusterIP: None
+  ports:
+  - name: mongodb
+    port: 27017
+    targetPort: 27017
+    protocol: TCP
+  selector:
+    app: devopspilot-mongodb
+    component: database
+---
+# Service for Celery Workers (if needed for monitoring)
+apiVersion: v1
+kind: Service
+metadata:
+  name: devopspilot-celery-worker-service
+  namespace: devopspilot
+  labels:
+    app: devopspilot-celery-worker
+    component: celery-worker
+    environment: production
+spec:
+  type: ClusterIP
+  ports:
+  - name: metrics
+    port: 8000
+    targetPort: 8000
+    protocol: TCP
+  selector:
+    app: devopspilot-celery-worker
+    component: celery-worker

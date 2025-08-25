@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: devopspilot
+  labels:
+    name: devopspilot
+    environment: production
+    project: devopspilot
+    team: devops
+  annotations:
+    description: "DevOpsPilot application namespace"
+    contact: "devops@devopspilot.com"
+    cost-center: "engineering"
+    backup-schedule: "daily"
+    monitoring: "enabled"
+    security-scan: "enabled"

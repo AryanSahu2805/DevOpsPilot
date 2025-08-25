@@ -1,0 +1,290 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: devopspilot-ingress
+  namespace: devopspilot
+  labels:
+    app: devopspilot
+    component: ingress
+    environment: production
+  annotations:
+    kubernetes.io/ingress.class: "nginx"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/ssl-passthrough: "false"
+    nginx.ingress.kubernetes.io/backend-protocol: "HTTP"
+    nginx.ingress.kubernetes.io/proxy-body-size: "100m"
+    nginx.ingress.kubernetes.io/proxy-connect-timeout: "30"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "30"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "300"
+    nginx.ingress.kubernetes.io/proxy-buffer-size: "4k"
+    nginx.ingress.kubernetes.io/proxy-buffers-number: "8"
+    nginx.ingress.kubernetes.io/rate-limit: "100"
+    nginx.ingress.kubernetes.io/rate-limit-window: "1m"
+    nginx.ingress.kubernetes.io/enable-cors: "true"
+    nginx.ingress.kubernetes.io/cors-allow-methods: "GET, POST, PUT, DELETE, OPTIONS"
+    nginx.ingress.kubernetes.io/cors-allow-origin: "https://devopspilot.com,https://www.devopspilot.com"
+    nginx.ingress.kubernetes.io/cors-allow-credentials: "true"
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    cert-manager.io/acme-http01-edit-in-place: "true"
+spec:
+  tls:
+  - hosts:
+    - devopspilot.com
+    - www.devopspilot.com
+    - api.devopspilot.com
+    secretName: devopspilot-tls
+  rules:
+  # Main Application
+  - host: devopspilot.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: devopspilot-frontend-service
+            port:
+              number: 80
+      - path: /api
+        pathType: Prefix
+        backend:
+          service:
+            name: devopspilot-backend-service
+            port:
+              number: 8000
+      - path: /ws
+        pathType: Prefix
+        backend:
+          service:
+            name: devopspilot-backend-service
+            port:
+              number: 8000
+      - path: /health
+        pathType: Exact
+        backend:
+          service:
+            name: devopspilot-backend-service
+            port:
+              number: 8000
+      - path: /metrics
+        pathType: Exact
+        backend:
+          service:
+            name: devopspilot-backend-service
+            port:
+              number: 8000
+  - host: www.devopspilot.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: devopspilot-frontend-service
+            port:
+              number: 80
+      - path: /api
+        pathType: Prefix
+        backend:
+          service:
+            name: devopspilot-backend-service
+            port:
+              number: 8000
+      - path: /ws
+        pathType: Prefix
+        backend:
+          service:
+            name: devopspilot-backend-service
+            port:
+              number: 8000
+      - path: /health
+        pathType: Exact
+        backend:
+          service:
+            name: devopspilot-backend-service
+            port:
+              number: 8000
+      - path: /metrics
+        pathType: Exact
+        backend:
+          service:
+            name: devopspilot-backend-service
+            port:
+              number: 8000
+  # API Subdomain
+  - host: api.devopspilot.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: devopspilot-backend-service
+            port:
+              number: 8000
+      - path: /ws
+        pathType: Prefix
+        backend:
+          service:
+            name: devopspilot-backend-service
+            port:
+              number: 8000
+      - path: /ai
+        pathType: Prefix
+        backend:
+          service:
+            name: devopspilot-ai-engine-service
+            port:
+              number: 8001
+      - path: /health
+        pathType: Exact
+        backend:
+          service:
+            name: devopspilot-backend-service
+            port:
+              number: 8000
+      - path: /metrics
+        pathType: Exact
+        backend:
+          service:
+            name: devopspilot-backend-service
+            port:
+              number: 8000
+---
+# Internal Ingress for Monitoring (Cluster Internal Only)
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: devopspilot-monitoring-ingress
+  namespace: devopspilot
+  labels:
+    app: devopspilot
+    component: monitoring
+    environment: production
+  annotations:
+    kubernetes.io/ingress.class: "nginx"
+    nginx.ingress.kubernetes.io/whitelist-source-range: "172.20.0.0/16,127.0.0.1"
+    nginx.ingress.kubernetes.io/backend-protocol: "HTTP"
+    nginx.ingress.kubernetes.io/proxy-connect-timeout: "30"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "30"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "30"
+spec:
+  rules:
+  - host: monitoring.internal.devopspilot.com
+    http:
+      paths:
+      - path: /prometheus
+        pathType: Prefix
+        backend:
+          service:
+            name: devopspilot-prometheus-service
+            port:
+              number: 9090
+      - path: /grafana
+        pathType: Prefix
+        backend:
+          service:
+            name: devopspilot-grafana-service
+            port:
+              number: 3000
+      - path: /node-exporter
+        pathType: Prefix
+        backend:
+          service:
+            name: devopspilot-node-exporter-service
+            port:
+              number: 9100
+---
+# API Gateway Ingress (Alternative to main ingress)
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: devopspilot-api-gateway
+  namespace: devopspilot
+  labels:
+    app: devopspilot
+    component: api-gateway
+    environment: production
+  annotations:
+    kubernetes.io/ingress.class: "nginx"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/backend-protocol: "HTTP"
+    nginx.ingress.kubernetes.io/rate-limit: "1000"
+    nginx.ingress.kubernetes.io/rate-limit-window: "1m"
+    nginx.ingress.kubernetes.io/enable-cors: "true"
+    nginx.ingress.kubernetes.io/cors-allow-methods: "GET, POST, PUT, DELETE, OPTIONS"
+    nginx.ingress.kubernetes.io/cors-allow-origin: "*"
+    nginx.ingress.kubernetes.io/cors-allow-credentials: "false"
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+spec:
+  tls:
+  - hosts:
+    - api.devopspilot.com
+    secretName: devopspilot-api-tls
+  rules:
+  - host: api.devopspilot.com
+    http:
+      paths:
+      # Backend API Routes
+      - path: /v1
+        pathType: Prefix
+        backend:
+          service:
+            name: devopspilot-backend-service
+            port:
+              number: 8000
+      - path: /v2
+        pathType: Prefix
+        backend:
+          service:
+            name: devopspilot-backend-service
+            port:
+              number: 8000
+      # AI Engine Routes
+      - path: /ai/v1
+        pathType: Prefix
+        backend:
+          service:
+            name: devopspilot-ai-engine-service
+            port:
+              number: 8001
+      # WebSocket Routes
+      - path: /ws/v1
+        pathType: Prefix
+        backend:
+          service:
+            name: devopspilot-backend-service
+            port:
+              number: 8000
+      # Health and Metrics
+      - path: /health
+        pathType: Exact
+        backend:
+          service:
+            name: devopspilot-backend-service
+            port:
+              number: 8000
+      - path: /metrics
+        pathType: Exact
+        backend:
+          service:
+            name: devopspilot-backend-service
+            port:
+              number: 8000
+      # Documentation
+      - path: /docs
+        pathType: Prefix
+        backend:
+          service:
+            name: devopspilot-backend-service
+            port:
+              number: 8000
+      - path: /openapi.json
+        pathType: Exact
+        backend:
+          service:
+            name: devopspilot-backend-service
+            port:
+              number: 8000

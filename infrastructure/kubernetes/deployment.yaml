@@ -1,0 +1,452 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: devopspilot-backend
+  namespace: devopspilot
+  labels:
+    app: devopspilot-backend
+    component: backend
+    environment: production
+    version: v1.0.0
+spec:
+  replicas: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: devopspilot-backend
+      component: backend
+  template:
+    metadata:
+      labels:
+        app: devopspilot-backend
+        component: backend
+        environment: production
+        version: v1.0.0
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8000"
+        prometheus.io/path: "/metrics"
+    spec:
+      serviceAccountName: devopspilot-backend-sa
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+      containers:
+      - name: backend
+        image: devopspilot/backend:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8000
+          name: http
+          protocol: TCP
+        - containerPort: 8001
+          name: metrics
+          protocol: TCP
+        env:
+        - name: ENVIRONMENT
+          value: "production"
+        - name: DEBUG
+          value: "false"
+        - name: LOG_LEVEL
+          value: "INFO"
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: devopspilot-secrets
+              key: database-url
+        - name: REDIS_URL
+          valueFrom:
+            secretKeyRef:
+              name: devopspilot-secrets
+              key: redis-url
+        - name: JWT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: devopspilot-secrets
+              key: jwt-secret
+        - name: JWT_ALGORITHM
+          value: "HS256"
+        - name: JWT_EXPIRATION
+          value: "3600"
+        - name: CORS_ORIGINS
+          value: "https://devopspilot.com,https://www.devopspilot.com"
+        - name: API_RATE_LIMIT
+          value: "100"
+        - name: API_RATE_LIMIT_WINDOW
+          value: "900"
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "2Gi"
+            cpu: "1000m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+        volumeMounts:
+        - name: logs
+          mountPath: /app/logs
+        - name: uploads
+          mountPath: /app/uploads
+        - name: config
+          mountPath: /app/config
+          readOnly: true
+      volumes:
+      - name: logs
+        emptyDir: {}
+      - name: uploads
+        persistentVolumeClaim:
+          claimName: devopspilot-uploads-pvc
+      - name: config
+        configMap:
+          name: devopspilot-backend-config
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: devopspilot-ai-engine
+  namespace: devopspilot
+  labels:
+    app: devopspilot-ai-engine
+    component: ai-engine
+    environment: production
+    version: v1.0.0
+spec:
+  replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: devopspilot-ai-engine
+      component: ai-engine
+  template:
+    metadata:
+      labels:
+        app: devopspilot-ai-engine
+        component: ai-engine
+        environment: production
+        version: v1.0.0
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8001"
+        prometheus.io/path: "/metrics"
+    spec:
+      serviceAccountName: devopspilot-ai-engine-sa
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+      containers:
+      - name: ai-engine
+        image: devopspilot/ai-engine:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8001
+          name: http
+          protocol: TCP
+        env:
+        - name: ENVIRONMENT
+          value: "production"
+        - name: DEBUG
+          value: "false"
+        - name: LOG_LEVEL
+          value: "INFO"
+        - name: MODEL_STORAGE_PATH
+          value: "/app/models"
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: devopspilot-secrets
+              key: database-url
+        - name: REDIS_URL
+          valueFrom:
+            secretKeyRef:
+              name: devopspilot-secrets
+              key: redis-url
+        - name: MAX_WORKERS
+          value: "4"
+        - name: BATCH_SIZE
+          value: "1000"
+        resources:
+          requests:
+            memory: "1Gi"
+            cpu: "500m"
+          limits:
+            memory: "4Gi"
+            cpu: "2000m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8001
+          initialDelaySeconds: 60
+          periodSeconds: 30
+          timeoutSeconds: 10
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8001
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        volumeMounts:
+        - name: ai-models
+          mountPath: /app/models
+        - name: ai-logs
+          mountPath: /app/logs
+        - name: config
+          mountPath: /app/config
+          readOnly: true
+      volumes:
+      - name: ai-models
+        persistentVolumeClaim:
+          claimName: devopspilot-ai-models-pvc
+      - name: ai-logs
+        emptyDir: {}
+      - name: config
+        configMap:
+          name: devopspilot-ai-engine-config
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: devopspilot-frontend
+  namespace: devopspilot
+  labels:
+    app: devopspilot-frontend
+    component: frontend
+    environment: production
+    version: v1.0.0
+spec:
+  replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: devopspilot-frontend
+      component: frontend
+  template:
+    metadata:
+      labels:
+        app: devopspilot-frontend
+        component: frontend
+        environment: production
+        version: v1.0.0
+    spec:
+      containers:
+      - name: frontend
+        image: devopspilot/frontend:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 80
+          name: http
+          protocol: TCP
+        env:
+        - name: NODE_ENV
+          value: "production"
+        - name: REACT_APP_API_URL
+          value: "https://api.devopspilot.com"
+        - name: REACT_APP_WS_URL
+          value: "wss://api.devopspilot.com/ws"
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "256Mi"
+            cpu: "200m"
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 80
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 80
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: devopspilot-celery-worker
+  namespace: devopspilot
+  labels:
+    app: devopspilot-celery-worker
+    component: celery-worker
+    environment: production
+    version: v1.0.0
+spec:
+  replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: devopspilot-celery-worker
+      component: celery-worker
+  template:
+    metadata:
+      labels:
+        app: devopspilot-celery-worker
+        component: celery-worker
+        environment: production
+        version: v1.0.0
+    spec:
+      serviceAccountName: devopspilot-backend-sa
+      containers:
+      - name: celery-worker
+        image: devopspilot/backend:latest
+        imagePullPolicy: Always
+        command: ["celery"]
+        args: ["-A", "app.core.celery", "worker", "--loglevel=info", "--concurrency=4"]
+        env:
+        - name: ENVIRONMENT
+          value: "production"
+        - name: DEBUG
+          value: "false"
+        - name: LOG_LEVEL
+          value: "INFO"
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: devopspilot-secrets
+              key: database-url
+        - name: REDIS_URL
+          valueFrom:
+            secretKeyRef:
+              name: devopspilot-secrets
+              key: redis-url
+        - name: CELERY_BROKER_URL
+          valueFrom:
+            secretKeyRef:
+              name: devopspilot-secrets
+              key: redis-url
+        - name: CELERY_RESULT_BACKEND
+          valueFrom:
+            secretKeyRef:
+              name: devopspilot-secrets
+              key: redis-url
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+        volumeMounts:
+        - name: logs
+          mountPath: /app/logs
+      volumes:
+      - name: logs
+        emptyDir: {}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: devopspilot-celery-beat
+  namespace: devopspilot
+  labels:
+    app: devopspilot-celery-beat
+    component: celery-beat
+    environment: production
+    version: v1.0.0
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: devopspilot-celery-beat
+      component: celery-beat
+  template:
+    metadata:
+      labels:
+        app: devopspilot-celery-beat
+        component: celery-beat
+        environment: production
+        version: v1.0.0
+    spec:
+      serviceAccountName: devopspilot-backend-sa
+      containers:
+      - name: celery-beat
+        image: devopspilot/backend:latest
+        imagePullPolicy: Always
+        command: ["celery"]
+        args: ["-A", "app.core.celery", "beat", "--loglevel=info"]
+        env:
+        - name: ENVIRONMENT
+          value: "production"
+        - name: DEBUG
+          value: "false"
+        - name: LOG_LEVEL
+          value: "INFO"
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: devopspilot-secrets
+              key: database-url
+        - name: REDIS_URL
+          valueFrom:
+            secretKeyRef:
+              name: devopspilot-secrets
+              key: redis-url
+        - name: CELERY_BROKER_URL
+          valueFrom:
+            secretKeyRef:
+              name: devopspilot-secrets
+              key: redis-url
+        - name: CELERY_RESULT_BACKEND
+          valueFrom:
+            secretKeyRef:
+              name: devopspilot-secrets
+              key: redis-url
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "250m"
+        volumeMounts:
+        - name: logs
+          mountPath: /app/logs
+      volumes:
+      - name: logs
+        emptyDir: {}

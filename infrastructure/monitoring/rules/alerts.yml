@@ -1,0 +1,292 @@
+groups:
+  - name: devopspilot-system
+    rules:
+      # Service Health Alerts
+      - alert: ServiceDown
+        expr: up == 0
+        for: 1m
+        labels:
+          severity: critical
+          service: "{{ $labels.job }}"
+        annotations:
+          summary: "Service {{ $labels.job }} is down"
+          description: "Service {{ $labels.job }} on {{ $labels.instance }} has been down for more than 1 minute"
+
+      - alert: ServiceUnhealthy
+        expr: up == 0
+        for: 30s
+        labels:
+          severity: warning
+          service: "{{ $labels.job }}"
+        annotations:
+          summary: "Service {{ $labels.job }} is unhealthy"
+          description: "Service {{ $labels.job }} on {{ $labels.instance }} is not responding"
+
+      # CPU Usage Alerts
+      - alert: HighCPUUsage
+        expr: rate(process_cpu_seconds_total{job=~"devopspilot-.*"}[5m]) * 100 > 80
+        for: 5m
+        labels:
+          severity: warning
+          service: "{{ $labels.job }}"
+        annotations:
+          summary: "High CPU usage on {{ $labels.job }}"
+          description: "CPU usage is {{ $value }}% on {{ $labels.job }} ({{ $labels.instance }})"
+
+      - alert: CriticalCPUUsage
+        expr: rate(process_cpu_seconds_total{job=~"devopspilot-.*"}[5m]) * 100 > 95
+        for: 2m
+        labels:
+          severity: critical
+          service: "{{ $labels.job }}"
+        annotations:
+          summary: "Critical CPU usage on {{ $labels.job }}"
+          description: "CPU usage is {{ $value }}% on {{ $labels.job }} ({{ $labels.instance }})"
+
+      # Memory Usage Alerts
+      - alert: HighMemoryUsage
+        expr: (process_resident_memory_bytes{job=~"devopspilot-.*"} / 1024 / 1024) > 1000
+        for: 5m
+        labels:
+          severity: warning
+          service: "{{ $labels.job }}"
+        annotations:
+          summary: "High memory usage on {{ $labels.job }}"
+          description: "Memory usage is {{ $value }}MB on {{ $labels.job }} ({{ $labels.instance }})"
+
+      - alert: CriticalMemoryUsage
+        expr: (process_resident_memory_bytes{job=~"devopspilot-.*"} / 1024 / 1024) > 2000
+        for: 2m
+        labels:
+          severity: critical
+          service: "{{ $labels.job }}"
+        annotations:
+          summary: "Critical memory usage on {{ $labels.job }}"
+          description: "Memory usage is {{ $value }}MB on {{ $labels.job }} ({{ $labels.instance }})"
+
+      # Response Time Alerts
+      - alert: HighResponseTime
+        expr: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket{job=~"devopspilot-.*"}[5m])) > 2
+        for: 5m
+        labels:
+          severity: warning
+          service: "{{ $labels.job }}"
+        annotations:
+          summary: "High response time on {{ $labels.job }}"
+          description: "95th percentile response time is {{ $value }}s on {{ $labels.job }} ({{ $labels.instance }})"
+
+      - alert: CriticalResponseTime
+        expr: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket{job=~"devopspilot-.*"}[5m])) > 5
+        for: 2m
+        labels:
+          severity: critical
+          service: "{{ $labels.job }}"
+        annotations:
+          summary: "Critical response time on {{ $labels.job }}"
+          description: "95th percentile response time is {{ $value }}s on {{ $labels.job }} ({{ $labels.instance }})"
+
+      # Error Rate Alerts
+      - alert: HighErrorRate
+        expr: (rate(http_requests_total{job=~"devopspilot-.*", status=~"5.."}[5m]) / rate(http_requests_total{job=~"devopspilot-.*"}[5m])) * 100 > 5
+        for: 5m
+        labels:
+          severity: warning
+          service: "{{ $labels.job }}"
+        annotations:
+          summary: "High error rate on {{ $labels.job }}"
+          description: "Error rate is {{ $value }}% on {{ $labels.job }} ({{ $labels.instance }})"
+
+      - alert: CriticalErrorRate
+        expr: (rate(http_requests_total{job=~"devopspilot-.*", status=~"5.."}[5m]) / rate(http_requests_total{job=~"devopspilot-.*"}[5m])) * 100 > 20
+        for: 2m
+        labels:
+          severity: critical
+          service: "{{ $labels.job }}"
+        annotations:
+          summary: "Critical error rate on {{ $labels.job }}"
+          description: "Error rate is {{ $value }}% on {{ $labels.job }} ({{ $labels.instance }})"
+
+  - name: devopspilot-database
+    rules:
+      # MongoDB Alerts
+      - alert: MongoDBHighConnections
+        expr: mongodb_connections{job="devopspilot-mongodb"} > 100
+        for: 5m
+        labels:
+          severity: warning
+          service: mongodb
+        annotations:
+          summary: "High MongoDB connections"
+          description: "MongoDB has {{ $value }} active connections"
+
+      - alert: MongoDBCriticalConnections
+        expr: mongodb_connections{job="devopspilot-mongodb"} > 200
+        for: 2m
+        labels:
+          severity: critical
+          service: mongodb
+        annotations:
+          summary: "Critical MongoDB connections"
+          description: "MongoDB has {{ $value }} active connections"
+
+      # Redis Alerts
+      - alert: RedisHighConnections
+        expr: redis_connected_clients{job="devopspilot-redis"} > 50
+        for: 5m
+        labels:
+          severity: warning
+          service: redis
+        annotations:
+          summary: "High Redis connections"
+          description: "Redis has {{ $value }} connected clients"
+
+      - alert: RedisCriticalConnections
+        expr: redis_connected_clients{job="devopspilot-redis"} > 100
+        for: 2m
+        labels:
+          severity: critical
+          service: redis
+        annotations:
+          summary: "Critical Redis connections"
+          description: "Redis has {{ $value }} connected clients"
+
+  - name: devopspilot-infrastructure
+    rules:
+      # System Load Alerts
+      - alert: HighSystemLoad
+        expr: node_load1{job="devopspilot-node-exporter"} > 5
+        for: 5m
+        labels:
+          severity: warning
+          service: system
+        annotations:
+          summary: "High system load"
+          description: "System load is {{ $value }} on {{ $labels.instance }}"
+
+      - alert: CriticalSystemLoad
+        expr: node_load1{job="devopspilot-node-exporter"} > 10
+        for: 2m
+        labels:
+          severity: critical
+          service: system
+        annotations:
+          summary: "Critical system load"
+          description: "System load is {{ $value }} on {{ $labels.instance }}"
+
+      # Disk Usage Alerts
+      - alert: HighDiskUsage
+        expr: (node_filesystem_size_bytes{job="devopspilot-node-exporter", mountpoint="/"} - node_filesystem_avail_bytes{job="devopspilot-node-exporter", mountpoint="/"}) / node_filesystem_size_bytes{job="devopspilot-node-exporter", mountpoint="/"} * 100 > 80
+        for: 5m
+        labels:
+          severity: warning
+          service: system
+        annotations:
+          summary: "High disk usage"
+          description: "Disk usage is {{ $value }}% on {{ $labels.instance }}"
+
+      - alert: CriticalDiskUsage
+        expr: (node_filesystem_size_bytes{job="devopspilot-node-exporter", mountpoint="/"} - node_filesystem_avail_bytes{job="devopspilot-node-exporter", mountpoint="/"}) / node_filesystem_size_bytes{job="devopspilot-node-exporter", mountpoint="/"} * 100 > 95
+        for: 2m
+        labels:
+          severity: critical
+          service: system
+        annotations:
+          summary: "Critical disk usage"
+          description: "Disk usage is {{ $value }}% on {{ $labels.instance }}"
+
+      # Memory Usage Alerts
+      - alert: HighSystemMemoryUsage
+        expr: (1 - (node_memory_MemAvailable_bytes{job="devopspilot-node-exporter"} / node_memory_MemTotal_bytes{job="devopspilot-node-exporter"})) * 100 > 80
+        for: 5m
+        labels:
+          severity: warning
+          service: system
+        annotations:
+          summary: "High system memory usage"
+          description: "System memory usage is {{ $value }}% on {{ $labels.instance }}"
+
+      - alert: CriticalSystemMemoryUsage
+        expr: (1 - (node_memory_MemAvailable_bytes{job="devopspilot-node-exporter"} / node_memory_MemTotal_bytes{job="devopspilot-node-exporter"})) * 100 > 95
+        for: 2m
+        labels:
+          severity: critical
+          service: system
+        annotations:
+          summary: "Critical system memory usage"
+          description: "System memory usage is {{ $value }}% on {{ $labels.instance }}"
+
+  - name: devopspilot-ai
+    rules:
+      # AI Model Performance Alerts
+      - alert: HighModelInferenceTime
+        expr: ai_model_inference_duration_seconds{job="devopspilot-ai-engine"} > 10
+        for: 5m
+        labels:
+          severity: warning
+          service: ai-engine
+        annotations:
+          summary: "High AI model inference time"
+          description: "AI model inference time is {{ $value }}s"
+
+      - alert: LowModelAccuracy
+        expr: ai_model_accuracy{job="devopspilot-ai-engine"} < 0.8
+        for: 10m
+        labels:
+          severity: warning
+          service: ai-engine
+        annotations:
+          summary: "Low AI model accuracy"
+          description: "AI model accuracy is {{ $value | humanizePercentage }}"
+
+      - alert: ModelTrainingFailure
+        expr: ai_model_training_status{job="devopspilot-ai-engine"} == 0
+        for: 1h
+        labels:
+          severity: critical
+          service: ai-engine
+        annotations:
+          summary: "AI model training failure"
+          description: "AI model training has failed"
+
+  - name: devopspilot-business
+    rules:
+      # Business Logic Alerts
+      - alert: HighQueueLength
+        expr: celery_queue_length{job="devopspilot-celery"} > 100
+        for: 5m
+        labels:
+          severity: warning
+          service: celery
+        annotations:
+          summary: "High queue length"
+          description: "Celery queue length is {{ $value }}"
+
+      - alert: CriticalQueueLength
+        expr: celery_queue_length{job="devopspilot-celery"} > 500
+        for: 2m
+        labels:
+          severity: critical
+          service: celery
+        annotations:
+          summary: "Critical queue length"
+          description: "Celery queue length is {{ $value }}"
+
+      - alert: HighActiveTasks
+        expr: celery_active_tasks{job="devopspilot-celery"} > 50
+        for: 5m
+        labels:
+          severity: warning
+          service: celery
+        annotations:
+          summary: "High number of active tasks"
+          description: "Number of active tasks is {{ $value }}"
+
+      - alert: TaskFailureRate
+        expr: (celery_failed_tasks_total{job="devopspilot-celery"} / celery_total_tasks_total{job="devopspilot-celery"}) * 100 > 10
+        for: 10m
+        labels:
+          severity: warning
+          service: celery
+        annotations:
+          summary: "High task failure rate"
+          description: "Task failure rate is {{ $value }}%"
