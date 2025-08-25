@@ -28,6 +28,18 @@ A **cloud-native monitoring and automation platform** that integrates DevOps wor
 - **Environment Management** - Dev, staging, production workflow tracking
 - **Kubernetes Native** - Built for cloud-native deployments
 
+## 📸 Screenshots
+
+### Landing Page
+![DevOps Pilot Landing Page](assets/DevOpsPilot%20Landing%20Page%20copy.png)
+
+*Modern, responsive landing page showcasing the platform's features and capabilities*
+
+### Dashboard
+![DevOps Pilot Dashboard](assets/DevOpsPilot%20Dashboard%20copy.png)
+
+*Comprehensive dashboard with real-time metrics, AI insights, and system monitoring*
+
 ## 🏗️ Architecture
 
 ### Technology Stack
